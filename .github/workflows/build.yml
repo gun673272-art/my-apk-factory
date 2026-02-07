@@ -1,34 +1,41 @@
-name: Build APK
+name: Build Pro APK
 on: [push]
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-
       - name: Install Cordova
         run: npm install -g cordova
-
-      - name: Build Android APK
+      - name: Build Process
         run: |
-          if [ ! -f index.html ]; then echo "<h1>Hello World</h1>" > index.html; fi
-          cordova create myApp com.example.app MyApp
-          rm -rf myApp/www/*
-          cp index.html myApp/www/
+          # ১. অ্যাপের তথ্য পড়া (config.json থেকে)
+          APP_NAME=$(jq -r '.name' config.json)
+          APP_ID=$(jq -r '.id' config.json)
+          APP_VER=$(jq -r '.version' config.json)
+          ICON_URL=$(jq -r '.icon' config.json)
+
+          # ২. কর্ডোভা প্রজেক্ট তৈরি
+          cordova create myApp "$APP_ID" "$APP_NAME"
           cd myApp
+          
+          # ৩. লোগো ডাউনলোড করা
+          curl -L "$ICON_URL" -o res/icon.png
+          sed -i "s/version=\"1.0.0\"/version=\"$APP_VER\"/" config.xml
+          sed -i "/<\/platform>/i \ \ \ \ <icon src=\"res\/icon.png\" \/>" config.xml
+
+          # ৪. সব ফাইল কপি করা (HTML, CSS, JS)
+          rm -rf www/*
+          cp -r ../* www/ || true
+          
           cordova platform add android
           cordova build android --debug
-
-      - name: Upload APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: my-apk-file
+          name: pro-apk
           path: myApp/platforms/android/app/build/outputs/apk/debug/app-debug.apk
