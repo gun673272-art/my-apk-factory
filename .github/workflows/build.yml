@@ -2,7 +2,7 @@ name: Build APK Properly
 on:
   push:
     paths:
-      - 'config.json'  # এই লাইনটিই আসল ম্যাজিক। শুধু config.json আপডেট হলেই বিল্ড শুরু হবে।
+      - 'config.json'  # শুধুমাত্র কনফিগ আপডেট হলে বিল্ড হবে
 
 jobs:
   build:
@@ -45,7 +45,10 @@ jobs:
           # ৪. অ্যান্ড্রয়েড প্ল্যাটফর্ম যোগ
           cordova platform add android
           
-          # ৫. ফাইল কপি করা (রুট ফোল্ডার থেকে myApp ফোল্ডারে)
+          # ৫. ফাইল কপি করা
+          # --- ফিক্স: res ফোল্ডার তৈরি করা ---
+          mkdir -p res
+          
           # আইকন আছে কি না চেক করে কপি করা
           if [ -f ../icon.png ]; then
             cp ../icon.png res/icon.png
