@@ -1,41 +1,79 @@
-name: Build Pro APK
-on: [push]
+name: Build APK Properly
+on:
+  push:
+    paths:
+      - 'config.json'  # এই লাইনটিই আসল ম্যাজিক। শুধু config.json আপডেট হলেই বিল্ড শুরু হবে।
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
       - name: Install Cordova
         run: npm install -g cordova
-      - name: Build Process
+
+      - name: Build Android APK
         run: |
-          # ১. অ্যাপের তথ্য পড়া (config.json থেকে)
+          # ১. কনফিগারেশন চেক করা
+          if [ ! -f config.json ]; then
+            echo "Config file missing!"
+            exit 1
+          fi
+
+          # ২. ডেটা রিড করা
           APP_NAME=$(jq -r '.name' config.json)
           APP_ID=$(jq -r '.id' config.json)
           APP_VER=$(jq -r '.version' config.json)
-          ICON_URL=$(jq -r '.icon' config.json)
+          
+          echo "Building $APP_NAME ($APP_ID) v$APP_VER..."
 
-          # ২. কর্ডোভা প্রজেক্ট তৈরি
+          # ৩. কর্ডোভা প্রজেক্ট তৈরি
           cordova create myApp "$APP_ID" "$APP_NAME"
           cd myApp
           
-          # ৩. লোগো ডাউনলোড করা
-          curl -L "$ICON_URL" -o res/icon.png
-          sed -i "s/version=\"1.0.0\"/version=\"$APP_VER\"/" config.xml
-          sed -i "/<\/platform>/i \ \ \ \ <icon src=\"res\/icon.png\" \/>" config.xml
-
-          # ৪. সব ফাইল কপি করা (HTML, CSS, JS)
-          rm -rf www/*
-          cp -r ../* www/ || true
-          
+          # ৪. অ্যান্ড্রয়েড প্ল্যাটফর্ম যোগ
           cordova platform add android
+          
+          # ৫. ফাইল কপি করা (রুট ফোল্ডার থেকে myApp ফোল্ডারে)
+          # আইকন আছে কি না চেক করে কপি করা
+          if [ -f ../icon.png ]; then
+            cp ../icon.png res/icon.png
+            echo "Icon updated."
+            
+            # config.xml এ আইকন ট্যাগ যোগ করা
+            sed -i "/<\/platform>/i \ \ \ \ <icon src=\"res\/icon.png\" \/>" config.xml
+          else
+            echo "No custom icon found, using default."
+          fi
+          
+          # HTML ফাইল কপি করা
+          if [ -f ../index.html ]; then
+            rm -rf www/index.html
+            cp ../index.html www/index.html
+            echo "HTML updated."
+          else
+            echo "No index.html found! Using default."
+          fi
+
+          # ৬. ভার্সন আপডেট করা
+          sed -i "s/version=\"1.0.0\"/version=\"$APP_VER\"/" config.xml
+
+          # ৭. ফাইনাল বিল্ড
           cordova build android --debug
-      - name: Upload
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: pro-apk
+          name: app-release
           path: myApp/platforms/android/app/build/outputs/apk/debug/app-debug.apk
