@@ -1,8 +1,8 @@
-name: Build APK Properly
+name: Build APK with Icon
 on:
   push:
     paths:
-      - 'config.json'  # শুধুমাত্র কনফিগ আপডেট হলে বিল্ড হবে
+      - 'config.json'
 
 jobs:
   build:
@@ -25,54 +25,41 @@ jobs:
 
       - name: Build Android APK
         run: |
-          # ১. কনফিগারেশন চেক করা
-          if [ ! -f config.json ]; then
-            echo "Config file missing!"
-            exit 1
-          fi
-
-          # ২. ডেটা রিড করা
+          # ১. ডেটা রিড করা
           APP_NAME=$(jq -r '.name' config.json)
           APP_ID=$(jq -r '.id' config.json)
           APP_VER=$(jq -r '.version' config.json)
           
-          echo "Building $APP_NAME ($APP_ID) v$APP_VER..."
-
-          # ৩. কর্ডোভা প্রজেক্ট তৈরি
+          # ২. কর্ডোভা প্রজেক্ট তৈরি
           cordova create myApp "$APP_ID" "$APP_NAME"
           cd myApp
           
-          # ৪. অ্যান্ড্রয়েড প্ল্যাটফর্ম যোগ
-          cordova platform add android
+          # ৩. ডিফল্ট ফাইল ক্লিয়ার করা
+          rm -rf www/*
           
-          # ৫. ফাইল কপি করা
-          # --- ফিক্স: res ফোল্ডার তৈরি করা ---
-          mkdir -p res
-          
-          # আইকন আছে কি না চেক করে কপি করা
-          if [ -f ../icon.png ]; then
-            cp ../icon.png res/icon.png
-            echo "Icon updated."
-            
-            # config.xml এ আইকন ট্যাগ যোগ করা
-            sed -i "/<\/platform>/i \ \ \ \ <icon src=\"res\/icon.png\" \/>" config.xml
-          else
-            echo "No custom icon found, using default."
-          fi
-          
-          # HTML ফাইল কপি করা
+          # ৪. HTML ফাইল কপি করা
           if [ -f ../index.html ]; then
-            rm -rf www/index.html
             cp ../index.html www/index.html
-            echo "HTML updated."
           else
-            echo "No index.html found! Using default."
+            echo "<h1>Default App</h1>" > www/index.html
           fi
 
-          # ৬. ভার্সন আপডেট করা
-          sed -i "s/version=\"1.0.0\"/version=\"$APP_VER\"/" config.xml
+          # ৫. লোগো সেটআপ (সবচেয়ে গুরুত্বপূর্ণ অংশ)
+          if [ -f ../icon.png ]; then
+            # লোগোটি www ফোল্ডারে নেওয়া
+            cp ../icon.png www/icon.png
+            # config.xml এ লোগোর পাথ সেট করা (widget ট্যাগের ঠিক আগে)
+            sed -i '/<\/widget>/i \    <icon src="www/icon.png" />' config.xml
+            echo "Custom Icon Applied."
+          else
+            echo "No icon.png found, using default Cordova icon."
+          fi
 
-          # ৭. ফাইনাল বিল্ড
+          # ৬. ভার্সন এবং অন্যান্য কনফিগারেশন আপডেট
+          sed -i "s/version=\"1.0.0\"/version=\"$APP_VER\"/" config.xml
+          
+          # ৭. প্ল্যাটফর্ম অ্যাড এবং বিল্ড
+          cordova platform add android
           cordova build android --debug
 
       - name: Upload APK
