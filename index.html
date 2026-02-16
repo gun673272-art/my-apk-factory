@@ -1,12 +1,440 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Document</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goji Messenger</title>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <style>
+        :root {
+            --tg-blue: #24A1DE;
+            --tg-light-blue: #e3f2fd;
+            --bg-color: #ffffff;
+            --gray-text: #707579;
+            --border-color: #f1f1f1;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #f4f4f4; display: flex; justify-content: center; height: 100vh; }
+
+        .app-shell {
+            background: var(--bg-color);
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .hidden { display: none !important; }
+
+        /* Auth Screens */
+        .form-screen {
+            padding: 40px 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
+        .form-screen h1 { color: var(--tg-blue); margin-bottom: 30px; }
+        .form-screen input {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            outline: none;
+        }
+        .form-screen button {
+            background: var(--tg-blue);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        /* Main Telegram UI */
+        header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h2 { font-size: 22px; color: var(--tg-blue); font-weight: bold; }
+        header i { font-size: 20px; color: var(--gray-text); cursor: pointer; }
+
+        .search-container { padding: 0 15px 10px; }
+        .search-bar {
+            background: #f1f1f1;
+            padding: 10px 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-bar input { border: none; background: transparent; flex: 1; outline: none; font-size: 16px; }
+        .search-bar i { color: var(--gray-text); }
+
+        /* Tabs like screenshot */
+        .tabs {
+            display: flex;
+            padding: 5px 15px;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .tab {
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-text);
+            cursor: pointer;
+        }
+        .tab.active { background: var(--tg-light-blue); color: var(--tg-blue); }
+
+        /* Chat List */
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item {
+            display: flex;
+            padding: 12px 15px;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .chat-item:hover { background: #f9f9f9; }
+        .avatar {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: var(--tg-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .chat-info { flex: 1; border-bottom: 1px solid #f5f5f5; padding-bottom: 10px; }
+        .chat-top { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .chat-top h4 { font-size: 16px; color: #000; }
+        .chat-top span { font-size: 12px; color: var(--gray-text); }
+        .chat-preview { font-size: 14px; color: var(--gray-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px; }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            border-top: 1px solid var(--border-color);
+            background: #fff;
+        }
+        .nav-item { text-align: center; color: var(--gray-text); cursor: pointer; font-size: 12px; position: relative;}
+        .nav-item i { font-size: 20px; margin-bottom: 3px; display: block; }
+        .nav-item.active { color: var(--tg-blue); }
+        .badge { background: #ff3b30; color: white; border-radius: 10px; padding: 1px 6px; font-size: 10px; position: absolute; top: -5px; right: 0; }
+
+        /* Chat Room UI */
+        .chat-room { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #fff; flex-direction: column; z-index: 10; display: none; }
+        .chat-header { padding: 10px 15px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; }
+        .chat-header i { cursor: pointer; font-size: 18px; }
+        
+        #messages { flex: 1; overflow-y: auto; padding: 15px; background: #e5ddd5; display: flex; flex-direction: column; }
+        .bubble { padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; word-wrap: break-word; font-size: 15px; line-height: 1.4; }
+        .my-msg { align-self: flex-end; background: #effdde; }
+        .other-msg { align-self: flex-start; background: #fff; }
+        .bubble img { max-width: 100%; border-radius: 10px; margin-top: 5px; }
+
+        .message-input-box { padding: 10px; display: flex; align-items: center; gap: 10px; background: #fff; }
+        .message-input-box input { flex: 1; border: none; padding: 10px; outline: none; font-size: 16px; }
+        .message-input-box i { color: var(--tg-blue); font-size: 22px; cursor: pointer; }
+
+        .fab {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            width: 55px;
+            height: 55px;
+            background: var(--tg-blue);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-  <p>HELLO Bro</p>
+
+<div class="app-shell">
+    
+    <!-- লগইন স্ক্রিন -->
+    <div id="auth-screen" class="form-screen">
+        <h1>Goji Telegram</h1>
+        <input type="email" id="email" placeholder="ইমেল">
+        <input type="password" id="password" placeholder="পাসওয়ার্ড">
+        <button id="btn-login">লগইন করুন</button>
+        <p style="margin-top: 15px; color: var(--gray-text);" onclick="toggleAuthMode()">নতুন একাউন্ট নেই? সাইনআপ করুন</p>
+    </div>
+
+    <!-- ইউজারনেম সেটআপ -->
+    <div id="username-screen" class="form-screen hidden">
+        <h2>ইউনিক ইউজারনেম তৈরি করুন</h2>
+        <input type="text" id="new-username" placeholder="যেমন: tech_king">
+        <button id="btn-save-username">সেভ করুন</button>
+    </div>
+
+    <!-- মেইন অ্যাপ স্ক্রিন -->
+    <div id="main-app" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
+        <header>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-bars"></i>
+                <h2>Telegram</h2>
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <i class="fa-solid fa-ellipsis-vertical" id="btn-logout"></i>
+            </div>
+        </header>
+
+        <div class="search-container">
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="global-search" placeholder="Search Chats / Username">
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active">All Chats</div>
+            <div class="tab">Unread</div>
+            <div class="tab">Me</div>
+        </div>
+
+        <div class="chat-list" id="chat-list-container">
+            <!-- এখানে সার্চ রেজাল্ট আসবে -->
+            <p style="text-align: center; color: #888; margin-top: 50px;">কাউকে খুঁজে বের করতে উপরে ইউজারনেম লিখে সার্চ দিন</p>
+        </div>
+
+        <div class="fab">
+            <i class="fa-solid fa-plus"></i>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active">
+                <i class="fa-regular fa-comment"></i>
+                Chats
+            </div>
+            <div class="nav-item">
+                <i class="fa-regular fa-user"></i>
+                <span class="badge">4</span>
+                Contacts
+            </div>
+            <div class="nav-item">
+                <i class="fa-solid fa-gear"></i>
+                Settings
+            </div>
+            <div class="nav-item">
+                <i class="fa-regular fa-circle-user"></i>
+                Profile
+            </div>
+        </nav>
+    </div>
+
+    <!-- চ্যাট রুম -->
+    <div id="chat-room" class="chat-room">
+        <div class="chat-header">
+            <i class="fa-solid fa-arrow-left" onclick="closeChat()"></i>
+            <div class="avatar" style="width: 40px; height: 40px; font-size: 14px;" id="target-avatar">U</div>
+            <div style="flex: 1;">
+                <h4 id="target-username">Username</h4>
+                <p style="font-size: 12px; color: var(--gray-text);">online</p>
+            </div>
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+        </div>
+        <div id="messages"></div>
+        <div class="message-input-box">
+            <label for="img-input"><i class="fa-solid fa-camera"></i></label>
+            <input type="file" id="img-input" accept="image/*" hidden>
+            <input type="text" id="msg-input" placeholder="Message">
+            <i class="fa-solid fa-paper-plane" id="btn-send"></i>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getDatabase, ref, set, get, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBEAe0_arr2hLkY9pKZkOc6KB2drN81jJ0",
+        authDomain: "goji-e88f7.firebaseapp.com",
+        databaseURL: "https://goji-e88f7-default-rtdb.firebaseio.com",
+        projectId: "goji-e88f7",
+        storageBucket: "goji-e88f7.firebasestorage.app",
+        messagingSenderId: "509858190624",
+        appId: "1:509858190624:web:3126b95aff59ea5fa8f345"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+    const IMGBB_API_KEY = "2f9b7037142a2a15bd0633f9a0621b19";
+
+    let currentUser = null;
+    let currentChatUID = null;
+    let authMode = 'login';
+
+    function showScreen(id) {
+        ['auth-screen', 'username-screen', 'main-app'].forEach(s => {
+            document.getElementById(s).classList.toggle('hidden', s !== id);
+        });
+    }
+
+    // Auth Logic
+    window.toggleAuthMode = () => {
+        authMode = authMode === 'login' ? 'signup' : 'login';
+        document.getElementById('btn-login').innerText = authMode === 'login' ? 'লগইন করুন' : 'সাইনআপ করুন';
+    };
+
+    document.getElementById('btn-login').onclick = () => {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        if(authMode === 'login') {
+            signInWithEmailAndPassword(auth, email, pass).catch(e => alert(e.message));
+        } else {
+            createUserWithEmailAndPassword(auth, email, pass).catch(e => alert(e.message));
+        }
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            const snap = await get(ref(db, `users/${user.uid}`));
+            if (snap.exists()) {
+                showScreen('main-app');
+            } else {
+                showScreen('username-screen');
+            }
+        } else {
+            showScreen('auth-screen');
+        }
+    });
+
+    // Username Logic
+    document.getElementById('btn-save-username').onclick = async () => {
+        const username = document.getElementById('new-username').value.toLowerCase().trim();
+        if (username.length < 3) return alert("ইউজারনেম অন্তত ৩ অক্ষরের হতে হবে");
+
+        const snap = await get(ref(db, 'usernames/' + username));
+        if (snap.exists()) {
+            alert("এই ইউজারনেমটি নেওয়া হয়ে গেছে!");
+        } else {
+            await set(ref(db, `users/${currentUser.uid}`), { username: username });
+            await set(ref(db, `usernames/${username}`), currentUser.uid);
+            location.reload();
+        }
+    };
+
+    // Global Search like Telegram
+    document.getElementById('global-search').oninput = async (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const container = document.getElementById('chat-list-container');
+        if (query.length < 2) return;
+
+        const snap = await get(ref(db, 'usernames/' + query));
+        if (snap.exists()) {
+            const uid = snap.val();
+            container.innerHTML = `
+                <div class="chat-item" onclick="openChat('${uid}', '${query}')">
+                    <div class="avatar">${query[0].toUpperCase()}</div>
+                    <div class="chat-info">
+                        <div class="chat-top"><h4>${query}</h4><span>Just now</span></div>
+                        <div class="chat-preview">Tap to start messaging</div>
+                    </div>
+                </div>`;
+        }
+    };
+
+    // Chat Logic
+    window.openChat = (uid, name) => {
+        currentChatUID = uid;
+        document.getElementById('target-username').innerText = "@" + name;
+        document.getElementById('target-avatar').innerText = name[0].toUpperCase();
+        document.getElementById('chat-room').style.display = 'flex';
+        loadMessages();
+    };
+
+    window.closeChat = () => {
+        document.getElementById('chat-room').style.display = 'none';
+        currentChatUID = null;
+    };
+
+    async function uploadImage(file) {
+        const formData = new FormData();
+        formData.append("image", file);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+        const data = await res.json();
+        return data.data.url;
+    }
+
+    document.getElementById('btn-send').onclick = async () => {
+        const text = document.getElementById('msg-input').value;
+        const file = document.getElementById('img-input').files[0];
+        if (!text && !file) return;
+
+        let imgUrl = "";
+        if (file) {
+            document.getElementById('btn-send').className = "fa-solid fa-spinner fa-spin";
+            imgUrl = await uploadImage(file);
+        }
+
+        const chatId = currentUser.uid < currentChatUID ? currentUser.uid + "_" + currentChatUID : currentChatUID + "_" + currentUser.uid;
+        push(ref(db, `chats/${chatId}`), {
+            sender: currentUser.uid,
+            text: text,
+            image: imgUrl,
+            time: Date.now()
+        });
+
+        document.getElementById('msg-input').value = "";
+        document.getElementById('img-input').value = "";
+        document.getElementById('btn-send').className = "fa-solid fa-paper-plane";
+    };
+
+    function loadMessages() {
+        const chatId = currentUser.uid < currentChatUID ? currentUser.uid + "_" + currentChatUID : currentChatUID + "_" + currentUser.uid;
+        onValue(ref(db, `chats/${chatId}`), (snapshot) => {
+            const win = document.getElementById('messages');
+            win.innerHTML = "";
+            snapshot.forEach(child => {
+                const data = child.val();
+                const side = data.sender === currentUser.uid ? "my-msg" : "other-msg";
+                win.innerHTML += `
+                    <div class="bubble ${side}">
+                        ${data.text ? `<p>${data.text}</p>` : ""}
+                        ${data.image ? `<img src="${data.image}">` : ""}
+                    </div>`;
+            });
+            win.scrollTop = win.scrollHeight;
+        });
+    }
+
+    document.getElementById('btn-logout').onclick = () => signOut(auth);
+</script>
+
 </body>
 </html>
